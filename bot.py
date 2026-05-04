@@ -9,7 +9,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from yt_dlp import YoutubeDL
 from youtubesearchpython import VideosSearch
 
-# --- WEBSERVER ---
+# --- WEBSERVER (Render uchun) ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -34,24 +34,21 @@ async def start_handler(message: types.Message):
 async def insta_dl(message: types.Message):
     wait = await message.answer("Video tahlil qilinmoqda... ⏳")
     path = f"v_{message.from_user.id}.mp4"
-    
-    # Instagram uchun optimallashgan sozlamalar
     opts = {
         'format': 'best',
         'outtmpl': path,
         'quiet': True,
         'no_check_certificate': True,
-        'add_header': [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')]
+        'add_header': [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')]
     }
-    
     try:
         with YoutubeDL(opts) as ydl:
             ydl.download([message.text])
-        await message.answer_video(video=types.FSInputFile(path), caption="Tayyor! ✅")
+        await message.answer_video(video=types.FSInputFile(path))
         os.remove(path)
     except Exception as e:
-        logging.error(f"Insta Error: {e}")
-        await message.answer("Instagram videoni yuklab bo'lmadi. Profil yopiq yoki bloklangan bo'lishi mumkin. ❌")
+        logging.error(e)
+        await message.answer("Instagram xatosi! Profil yopiq bo'lishi mumkin. ❌")
     finally:
         await wait.delete()
 
@@ -63,18 +60,16 @@ async def music_search(message: types.Message):
         search = VideosSearch(message.text, limit=5)
         res = search.result().get('result', [])
         if not res:
-            await message.answer("Hech narsa topilmadi. ❌")
+            await message.answer("Topilmadi. ❌")
             return
-        
         kb = []
         for i in res:
-            title = i.get('title', 'Noma'lum')[:35]
+            title = i.get('title', 'Musiqa')[:35]
             kb.append([InlineKeyboardButton(text=f"🎵 {title}", callback_data=f"dl_{i['id']}")])
-        
         await message.answer("Tanlang: 👇", reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
     except Exception as e:
-        logging.error(f"Search Error: {e}")
-        await message.answer(f"Qidiruvda xato yuz berdi. 🛠")
+        logging.error(e)
+        await message.answer("Qidiruvda xato. 🛠")
     finally:
         await wait.delete()
 
@@ -84,16 +79,14 @@ async def music_dl(callback: types.CallbackQuery):
     url = f"https://www.youtube.com/watch?v={v_id}"
     path = f"{v_id}.mp3"
     await callback.answer("Yuklanmoqda... ✨")
-    
     opts = {'format': 'bestaudio', 'outtmpl': path, 'quiet': True}
     try:
         with YoutubeDL(opts) as ydl:
             ydl.download([url])
         await callback.message.answer_audio(audio=types.FSInputFile(path))
         os.remove(path)
-    except Exception as e:
-        logging.error(f"Download Error: {e}")
-        await callback.message.answer("Musiqani yuklab bo'lmadi. ❌")
+    except:
+        await callback.message.answer("Yuklab bo'lmadi. ❌")
 
 async def main():
     threading.Thread(target=run_web_server, daemon=True).start()
